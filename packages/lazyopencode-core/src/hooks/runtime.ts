@@ -112,11 +112,9 @@ export interface ContextStats {
 
 export type CloseEvidenceKind = "behavior" | "test" | "verification" | "risk" | "deletion"
 
-export type EvidenceSource = "auto" | "manual"
-
 export interface CloseReportState {
   behaviorChanges: string[]
-  testRuns: Array<{ command: string; result: "pass" | "fail" | "unknown"; source?: EvidenceSource }>
+  testRuns: Array<{ command: string; result: "pass" | "fail" | "unknown" }>
   lastTestCommand?: string
   lastVerifyCommand?: string
   verificationResult?: "pass" | "fail" | "pending"
@@ -133,7 +131,6 @@ export interface OpenCodeSnapshot {
   sessionStatus: string
   capabilities: string[]
   lastUpdatedAt?: number
-  errors?: string[]
 }
 
 export interface DoctorState {
@@ -395,7 +392,6 @@ export function createLazyRuntime(ctx: PluginContext = {}): LazyRuntime {
         closeReport.testRuns = appendLimited(closeReport.testRuns, {
           command,
           result: looksLikeFailure(text) ? "fail" : "pass",
-          source: "auto",
         }, max)
         closeReport.lastTestCommand = command
       }
@@ -444,7 +440,6 @@ export function createLazyRuntime(ctx: PluginContext = {}): LazyRuntime {
       closeReport.testRuns = appendLimited(closeReport.testRuns, {
         command: text,
         result: "unknown",
-        source: "manual",
       }, max)
     }
     closeReport.updatedAt = Date.now()
@@ -838,6 +833,7 @@ function formatTokenControl(stats: ContextStats): string {
 }
 
 function formatOpenCodeSnapshot(snapshot: OpenCodeSnapshot): string {
+  // ponytail: 120s/600s thresholds, make configurable when users request it
   const age = snapshot.lastUpdatedAt ? Date.now() - snapshot.lastUpdatedAt : Infinity
   const freshness = age < 120_000 ? "fresh" : age < 600_000 ? "stale" : "aged"
   const time = snapshot.lastUpdatedAt
