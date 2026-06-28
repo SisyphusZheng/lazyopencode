@@ -1,5 +1,5 @@
 node_modules/
 dist/
-.opencode/lazy/images/
+.opencode/lazy/
 *.tgz
 .DS_Store
