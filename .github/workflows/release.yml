@@ -23,7 +23,9 @@ jobs:
           deno-version: v2.x
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           registry-url: "https://registry.npmjs.org"
+      - run: npm install -g npm@latest
+      - run: npm --version
       - run: deno task verify
       - run: npm publish --provenance --access public
