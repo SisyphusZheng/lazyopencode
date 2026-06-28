@@ -27,6 +27,16 @@ One install line turns OpenCode into a governed AI coding team: task classifier,
 3. Run `opencode` in any project
 4. Try `/lazy start <task>` or `/lazy doctor`
 
+## Updating
+
+Clear the plugin cache then restart OpenCode:
+
+```sh
+rm -rf ~/.cache/opencode/packages/lazyopencode-core@latest && opencode
+```
+
+The cache is checked at startup — no version detection yet, so manual refresh is needed after every publish.
+
 ## Docs
 
 | Doc | What's inside |
