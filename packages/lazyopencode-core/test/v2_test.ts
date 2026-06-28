@@ -1,13 +1,10 @@
 import { assert, assertEquals } from "jsr:@std/assert@1"
-import LazyOpenCodeDefault, {
-  LazyOpenCodePlugin,
-  LazyOpenCodePluginV1,
-  LazyOpenCodeV2Plugin,
-} from "../src/index.ts"
+import LazyOpenCodeDefault, { LazyOpenCodePlugin, LazyOpenCodePluginV1 } from "../src/index.ts"
+import { LazyOpenCodeV2Plugin } from "../src/v2.ts"
 import { createOpenCodeControlPlane } from "../src/opencode-control-plane.ts"
 
 Deno.test("v2 default export registers governed OpenCode surface", async () => {
-  assertEquals(LazyOpenCodeDefault, LazyOpenCodeV2Plugin)
+  assertEquals(LazyOpenCodeDefault, LazyOpenCodePluginV1)
   assertEquals(LazyOpenCodePlugin, LazyOpenCodePluginV1)
 
   const transforms: Record<string, Array<(draft: unknown) => void | Promise<void>>> = {

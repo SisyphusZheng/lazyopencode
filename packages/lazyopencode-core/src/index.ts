@@ -6,7 +6,6 @@ import { registerLazyCommands } from "./hooks/lazy-command.js"
 import { createLazyRuntime, type LazyConfig } from "./hooks/runtime.js"
 import { getSkillsDir } from "./skills/index.js"
 import { createCancelTaskTool, createCouncilTool } from "./tools/index.js"
-import { LazyOpenCodeV2Plugin } from "./v2.js"
 import { createOpenCodeControlPlane } from "./opencode-control-plane.js"
 
 /** Runtime config shape with skills (present at runtime, missing from v1 SDK types) */
@@ -87,8 +86,8 @@ const LazyOpenCodePluginV1: Plugin = async (ctx) => {
 
 const LazyOpenCodePlugin = LazyOpenCodePluginV1
 
-export { LazyOpenCodePlugin, LazyOpenCodePluginV1, LazyOpenCodeV2Plugin }
-export default LazyOpenCodeV2Plugin
+export { LazyOpenCodePlugin, LazyOpenCodePluginV1 }
+export default LazyOpenCodePluginV1
 
 function mergeAgents(
   existing: NonNullable<RuntimeConfig["agent"]>,
