@@ -48,7 +48,7 @@ Add the plugin to your OpenCode config:
 ```jsonc
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["@lazyopencode/core"]
+  "plugin": ["lazyopencode-core"]
 }
 ```
 
