@@ -1,6 +1,6 @@
 {
-  "name": "@lazyopencode/core",
-  "version": "0.0.3",
+  "name": "lazyopencode-core",
+  "version": "0.0.4",
   "exports": {
     ".": "./dist/index.js"
   },

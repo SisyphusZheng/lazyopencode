@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url"
 import { BackgroundJobBoard } from "./background-job-board.js"
 import type { LazyMode, WorkflowDecision } from "./workflow-classifier.js"
 import { defaultCouncilConfig } from "../council/index.js"
-import type { OpenCodeControlPlane } from "../opencode-control-plane.js"
+import type { ModelProfileValidation, OpenCodeControlPlane } from "../opencode-control-plane.js"
 import { getSkillsDir } from "../skills/index.js"
 
 export interface LazyConfig {
@@ -22,10 +22,24 @@ export interface LazyConfig {
     permissions?: boolean
     worktreeIsolation?: "off" | "risky-only" | "always"
     revertCheckpoints?: boolean
+    context7?: "suggest" | "inject" | "off"
+    sdkControlPlane?: boolean
+    sdkTelemetry?: boolean
+    tuiNotifications?: boolean
   }
   closeReport?: {
     autoCollect?: boolean
     maxItems?: number
+  }
+  models?: {
+    mode?: "preserve" | "profile"
+    primary?: string
+    defaultSubagent?: string
+    escalation?: {
+      oracle?: string
+      council?: string
+    }
+    byAgent?: Record<string, string>
   }
   mode?: LazyMode
   maxSessionsPerAgent?: number
@@ -55,10 +69,24 @@ export interface RequiredLazyConfig {
     permissions: boolean
     worktreeIsolation: "off" | "risky-only" | "always"
     revertCheckpoints: boolean
+    context7: "suggest" | "inject" | "off"
+    sdkControlPlane: boolean
+    sdkTelemetry: boolean
+    tuiNotifications: boolean
   }
   closeReport: {
     autoCollect: boolean
     maxItems: number
+  }
+  models: {
+    mode: "preserve" | "profile"
+    primary?: string
+    defaultSubagent?: string
+    escalation: {
+      oracle?: string
+      council?: string
+    }
+    byAgent: Record<string, string>
   }
   mode: LazyMode
   maxSessionsPerAgent: number
@@ -127,9 +155,14 @@ export interface OpenCodeSnapshot {
   pendingPermissions: number
   todos: number
   diffSummary: string
+  childSessions: number
+  changedFiles: number
   worktree: string
   sessionStatus: string
+  currentModel: string
+  availableModels: string[]
   capabilities: string[]
+  warnings: string[]
   lastUpdatedAt?: number
 }
 
@@ -175,6 +208,13 @@ export interface LazyRuntime {
   formatCloseReport(sessionID?: string): string
   formatInstallHealth(): string
   formatDoctorReport(): string
+  validateModelProfile(): Promise<ModelProfileValidation>
+  log(
+    level: "debug" | "info" | "warn" | "error",
+    message: string,
+    metadata?: unknown,
+  ): Promise<void>
+  notify(kind: "info" | "warn" | "error", message: string): Promise<void>
   getReferenceSnapshot(): Record<string, unknown>
 }
 
@@ -329,15 +369,20 @@ export function createLazyRuntime(ctx: PluginContext = {}): LazyRuntime {
   }
 
   const refreshOpenCodeSnapshot = async (sessionID?: string): Promise<void> => {
-    if (!controlPlane) return
+    if (!controlPlane || !config.opencode.sdkControlPlane) return
     const snapshot = await controlPlane.snapshot(sessionID)
     openCodeSnapshot = {
       pendingPermissions: snapshot.pendingPermissions,
       todos: snapshot.todos,
       diffSummary: snapshot.diffSummary,
+      childSessions: snapshot.childSessions,
+      changedFiles: snapshot.changedFiles,
       worktree: snapshot.worktree === "unknown" ? scope.worktree : snapshot.worktree,
       sessionStatus: snapshot.sessionStatus,
+      currentModel: snapshot.currentModel,
+      availableModels: snapshot.availableModels,
       capabilities: snapshot.capabilities,
+      warnings: snapshot.warnings,
       lastUpdatedAt: Date.now(),
     }
     if (snapshot.diffSummary !== "not collected") {
@@ -352,6 +397,39 @@ export function createLazyRuntime(ctx: PluginContext = {}): LazyRuntime {
     await save()
   }
 
+  const validateModelProfile = async (): Promise<ModelProfileValidation> => {
+    const models = [
+      config.models.primary,
+      config.models.defaultSubagent,
+      config.models.escalation.oracle,
+      config.models.escalation.council,
+      ...Object.values(config.models.byAgent),
+    ].filter((model): model is string => Boolean(model))
+    if (!controlPlane || !config.opencode.sdkControlPlane) {
+      return {
+        currentModel: "OpenCode selected model",
+        availableModels: [],
+        invalidModels: [],
+        warnings: ["OpenCode SDK control plane disabled or unavailable"],
+      }
+    }
+    return await controlPlane.validateModels(models)
+  }
+
+  const log = async (
+    level: "debug" | "info" | "warn" | "error",
+    message: string,
+    metadata?: unknown,
+  ): Promise<void> => {
+    if (!config.opencode.sdkTelemetry || !controlPlane) return
+    await controlPlane.log(level, message, metadata)
+  }
+
+  const notify = async (kind: "info" | "warn" | "error", message: string): Promise<void> => {
+    if (!config.opencode.tuiNotifications || !controlPlane) return
+    await controlPlane.notify(kind, message)
+  }
+
   const recordOpenCodeEvent = async (event: Record<string, unknown>): Promise<void> => {
     const type = String(event.type ?? event.kind ?? "event")
     const value = event.value
@@ -359,8 +437,12 @@ export function createLazyRuntime(ctx: PluginContext = {}): LazyRuntime {
       openCodeSnapshot.pendingPermissions = Number(value ?? event.count ?? 0)
     } else if (type === "todo" || type === "todos") {
       openCodeSnapshot.todos = Number(value ?? event.count ?? 0)
+    } else if (type === "children" || type === "childSessions") {
+      openCodeSnapshot.childSessions = Number(value ?? event.count ?? 0)
     } else if (type === "diff") {
       openCodeSnapshot.diffSummary = String(value ?? event.summary ?? "available")
+    } else if (type === "file" || type === "files") {
+      openCodeSnapshot.changedFiles = Number(value ?? event.count ?? 0)
     } else if (type === "worktree") {
       openCodeSnapshot.worktree = String(value ?? event.path ?? scope.worktree)
     } else if (type === "session") {
@@ -467,6 +549,7 @@ export function createLazyRuntime(ctx: PluginContext = {}): LazyRuntime {
 
     lines.push("", formatInstallHealth())
     lines.push("", formatTokenControl(contextStats))
+    lines.push("", formatModelProfile(config))
     lines.push("", formatOpenCodeSnapshot(openCodeSnapshot))
 
     const board = sessionID ? jobBoard.formatForPrompt(sessionID) : null
@@ -526,6 +609,11 @@ export function createLazyRuntime(ctx: PluginContext = {}): LazyRuntime {
       `- Terminal unreconciled jobs: ${terminal.length}`,
       `- Reusable sessions: ${reusable.length}`,
       `- Stale sessions: ${stale.length}`,
+      `- OpenCode child sessions: ${openCodeSnapshot.childSessions}`,
+      `- Pending permissions: ${openCodeSnapshot.pendingPermissions}`,
+      `- Open todos: ${openCodeSnapshot.todos}`,
+      `- Changed files: ${openCodeSnapshot.changedFiles}`,
+      `- Diff summary: ${openCodeSnapshot.diffSummary}`,
       "",
       "Changed behavior",
       ...formatStringList(closeReport.behaviorChanges),
@@ -550,6 +638,9 @@ export function createLazyRuntime(ctx: PluginContext = {}): LazyRuntime {
       `- council: ${config.council.enabled ? config.council.eligibility : "disabled"}`,
       `- permission guard: ${config.permissionGuard ? "enabled" : "disabled"}`,
       `- token control: maxMessages ${config.maxMessages}`,
+      `- model profile: ${config.models.mode}`,
+      `- context7: ${config.opencode.context7}`,
+      `- SDK control plane: ${config.opencode.sdkControlPlane ? "enabled" : "disabled"}`,
       `- sdk: ${config.sdk.mode} + legacy hooks ${
         config.sdk.legacyHookAdapter ? "enabled" : "disabled"
       }`,
@@ -584,13 +675,41 @@ export function createLazyRuntime(ctx: PluginContext = {}): LazyRuntime {
     if (config.council.enabled && config.council.eligibility === "always") {
       warnings.push("council eligibility is always; guarded escalation is disabled")
     }
+    if (config.opencode.context7 === "suggest") {
+      warnings.push("context7 not injected; configure your own MCP or set opencode.context7=inject")
+    }
+    if (
+      config.models.mode === "profile" && !config.models.primary && !config.models.defaultSubagent
+    ) {
+      warnings.push("model profile enabled but no primary/defaultSubagent model is configured")
+    }
+    if (openCodeSnapshot.warnings.length > 0) {
+      warnings.push(`SDK degraded: ${openCodeSnapshot.warnings.join("; ")}`)
+    }
     return [
       "LAZY DOCTOR",
+      "",
+      "Plugin registration",
       `- v2 registration: ${doctor.v2Registration ? "ok" : "missing"}`,
       `- legacy hooks: ${doctor.legacyHookAdapter ? "ok" : "disabled"}`,
       `- skills: ${doctor.skills ? "ok" : "missing"}`,
       `- commands: ${doctor.commands ? "ok" : "disabled"}`,
+      "",
+      "SDK capabilities",
+      `- control plane: ${config.opencode.sdkControlPlane ? "enabled" : "disabled"}`,
+      `- detected: ${
+        openCodeSnapshot.capabilities.length ? openCodeSnapshot.capabilities.join(", ") : "none"
+      }`,
+      `- session: ${openCodeSnapshot.sessionStatus}`,
+      `- current model: ${openCodeSnapshot.currentModel}`,
+      `- available models: ${openCodeSnapshot.availableModels.length}`,
+      "",
+      "Governance",
       `- permissions: ${config.permissionGuard ? "guarded" : "unguarded"}`,
+      `- context7: ${config.opencode.context7}`,
+      `- model profile: ${config.models.mode}`,
+      "",
+      "Package",
       `- package: ${doctor.packageReady ? "ready" : "unknown"}`,
       `- desktop config: ${doctor.desktopConfig ? "detected" : "not detected"}`,
       `- warnings: ${warnings.length === 0 ? "none" : warnings.join("; ")}`,
@@ -659,6 +778,9 @@ export function createLazyRuntime(ctx: PluginContext = {}): LazyRuntime {
     formatCloseReport,
     formatInstallHealth,
     formatDoctorReport,
+    validateModelProfile,
+    log,
+    notify,
     getReferenceSnapshot: () => ({
       scope,
       workflow,
@@ -692,10 +814,24 @@ export function resolveLazyConfig(
       permissions: input?.opencode?.permissions ?? true,
       worktreeIsolation: input?.opencode?.worktreeIsolation ?? "risky-only",
       revertCheckpoints: input?.opencode?.revertCheckpoints ?? true,
+      context7: input?.opencode?.context7 ?? "suggest",
+      sdkControlPlane: input?.opencode?.sdkControlPlane ?? true,
+      sdkTelemetry: input?.opencode?.sdkTelemetry ?? true,
+      tuiNotifications: input?.opencode?.tuiNotifications ?? true,
     },
     closeReport: {
       autoCollect: input?.closeReport?.autoCollect ?? true,
       maxItems: input?.closeReport?.maxItems ?? 5,
+    },
+    models: {
+      mode: input?.models?.mode ?? "preserve",
+      primary: input?.models?.primary,
+      defaultSubagent: input?.models?.defaultSubagent,
+      escalation: {
+        oracle: input?.models?.escalation?.oracle,
+        council: input?.models?.escalation?.council,
+      },
+      byAgent: input?.models?.byAgent ?? {},
     },
     mode: input?.mode ?? "governor",
     maxSessionsPerAgent: input?.maxSessionsPerAgent ?? 2,
@@ -751,9 +887,14 @@ function createEmptyOpenCodeSnapshot(worktree: string): OpenCodeSnapshot {
     pendingPermissions: 0,
     todos: 0,
     diffSummary: "not collected",
+    childSessions: 0,
+    changedFiles: 0,
     worktree,
     sessionStatus: "unknown",
+    currentModel: "OpenCode selected model",
+    availableModels: [],
     capabilities: [],
+    warnings: [],
   }
 }
 
@@ -801,9 +942,14 @@ function normalizeOpenCodeSnapshot(
     pendingPermissions: input?.pendingPermissions ?? 0,
     todos: input?.todos ?? 0,
     diffSummary: input?.diffSummary ?? "not collected",
+    childSessions: input?.childSessions ?? 0,
+    changedFiles: input?.changedFiles ?? 0,
     worktree: input?.worktree ?? worktree,
     sessionStatus: input?.sessionStatus ?? "unknown",
+    currentModel: input?.currentModel ?? "OpenCode selected model",
+    availableModels: input?.availableModels ?? [],
     capabilities: input?.capabilities ?? [],
+    warnings: input?.warnings ?? [],
     lastUpdatedAt: input?.lastUpdatedAt,
   }
 }
@@ -832,6 +978,26 @@ function formatTokenControl(stats: ContextStats): string {
   ].join("\n")
 }
 
+function formatModelProfile(config: RequiredLazyConfig): string {
+  const primary = config.models.primary ?? "OpenCode selected model"
+  const subagent = config.models.defaultSubagent ?? "OpenCode selected model"
+  const oracle = config.models.escalation.oracle ?? config.models.primary ??
+    "OpenCode selected model"
+  const council = config.models.escalation.council ?? config.models.defaultSubagent ??
+    "OpenCode selected model"
+  const overrides = Object.keys(config.models.byAgent)
+
+  return [
+    "Model profile",
+    `- mode: ${config.models.mode}`,
+    `- primary: ${primary}`,
+    `- default subagent: ${subagent}`,
+    `- oracle: ${oracle}`,
+    `- council: ${council}`,
+    `- agent overrides: ${overrides.length > 0 ? overrides.join(", ") : "none"}`,
+  ].join("\n")
+}
+
 function formatOpenCodeSnapshot(snapshot: OpenCodeSnapshot): string {
   // ponytail: 120s/600s thresholds, make configurable when users request it
   const age = snapshot.lastUpdatedAt ? Date.now() - snapshot.lastUpdatedAt : Infinity
@@ -846,13 +1012,17 @@ function formatOpenCodeSnapshot(snapshot: OpenCodeSnapshot): string {
     "OpenCode",
     `- snapshot: ${freshness} @ ${time}`,
     `- session: ${snapshot.sessionStatus}`,
+    `- child sessions: ${snapshot.childSessions}`,
     `- pending permissions: ${snapshot.pendingPermissions}`,
     `- todos: ${snapshot.todos}`,
     `- diff: ${snapshot.diffSummary}`,
+    `- changed files: ${snapshot.changedFiles}`,
     `- worktree: ${snapshot.worktree}`,
+    `- model: ${snapshot.currentModel}`,
     `- capabilities: ${
       hasCapabilities ? degraded ? "⚠ degraded" : snapshot.capabilities.join(", ") : "not collected"
     }`,
+    `- warnings: ${snapshot.warnings.length > 0 ? snapshot.warnings.join("; ") : "none"}`,
   ].join("\n")
 }
 

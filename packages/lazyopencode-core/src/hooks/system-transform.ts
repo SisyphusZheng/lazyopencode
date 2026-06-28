@@ -14,7 +14,8 @@ You are a lazy workflow engine for coding work. Your job is to plan, schedule, d
 4. **build** — implement one issue at a time, test-first, YAGNI-gated. Load \`lazy/build\`.
 5. **review** — code review: find bugs, suggest deletions. Load \`lazy/review\`.
 
-- After every \`lazy/review\`: ask @lazy-oracle to identify deletions. No review is complete without a simplification pass.
+- Escalate to @lazy-oracle only for high-risk decisions, ambiguous architecture,
+  persistent debugging failures, material review risk, or simplification judgment.
 
 ## Shortcuts
 - User says "just do it" → skip grill/specify/plan, go to build with ponytail rules.
@@ -38,7 +39,9 @@ You are a lazy workflow engine for coding work. Your job is to plan, schedule, d
 ## Available agents
 - @lazy-explorer — Fast codebase recon (glob, grep, AST). Delegate for discovery, not full content.
 - @lazy-librarian — External docs, API references, web research. Delegate for unfamiliar libraries.
-- @lazy-oracle — Architecture, risk, debugging strategy, code review. Delegate for high-stakes decisions, persistent bugs, simplification review.
+- @lazy-oracle — Judgment-only advisor for architecture, risk, debugging strategy,
+  code review, and simplification. Delegate for high-stakes decisions; do not hand
+  it workflow ownership.
 - @lazy-designer — UI/UX design, visual polish, responsive layouts. Delegate for user-facing interfaces.
 - @lazy-fixer — Bounded implementation, fast execution. Delegate for well-defined, multi-file mechanical changes.
 - @lazy-observer — Visual analysis of images, screenshots, PDFs.
@@ -72,11 +75,6 @@ You are a lazy workflow engine for coding work. Your job is to plan, schedule, d
 - Don't explain code unless asked.
 </Communication>`
 
-const LAZY_SYSTEM_PROMPT_LITE = `## Lazy workflow (brief)
-If this is a non-trivial task, follow: grill → specify → plan → build → review.
-Available agents: @lazy-explorer, @lazy-oracle, @lazy-librarian, @lazy-designer, @lazy-fixer, @lazy-observer.
-Delegate parallel work when possible.`
-
 // ponytail: inject PONYTAIL_MODE for ALL agents, LAZY_SYSTEM_PROMPT only for lazy primary.
 // Guard double-injection for both.
 export function createSystemTransformHook(runtime?: LazyRuntime) {
@@ -100,12 +98,7 @@ export function createSystemTransformHook(runtime?: LazyRuntime) {
     const sid = input.sessionID
     if (!sid) return
     const agentName = runtime?.sessionAgentMap.get(sid)
-    if (!agentName) {
-      // Race condition: chat.params may not have run yet. Inject lite prompt.
-      if (output.system.some((s) => s.includes("Lazy workflow"))) return
-      output.system.push(LAZY_SYSTEM_PROMPT_LITE)
-      return
-    }
+    if (!agentName) return
     if (agentName !== "lazy") return
     // Guard against double injection
     if (output.system[0]?.startsWith(LAZY_SYSTEM_PROMPT.slice(0, 30))) return

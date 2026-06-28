@@ -38,7 +38,7 @@ export function createAgents(): Record<string, AgentConfig> {
     "lazy-librarian": {
       prompt: LIBRARIAN_PROMPT,
       description:
-        "External documentation, API references, web research via context7 and GitHub code search.",
+        "External documentation, API references, configured docs MCPs, and GitHub code search.",
       mode: "subagent",
     },
     "lazy-designer": {

@@ -9,7 +9,7 @@ LazyOpenCode Desktop ships the governed defaults and health surface.
 ## Strategy
 
 The plugin remains the source of truth. Desktop bundles and enables
-`@lazyopencode/core`; it does not duplicate LazyOpenCode governance logic.
+`lazyopencode-core`; it does not duplicate LazyOpenCode governance logic.
 
 ## First-Run Defaults
 
@@ -17,7 +17,7 @@ Desktop should merge the defaults from
 `apps/lazyopencode-desktop/lazyopencode.default.jsonc` into the user's generated
 OpenCode config:
 
-- Add `@lazyopencode/core` to `plugin` if absent.
+- Add `lazyopencode-core` to `plugin` if absent.
 - Add `lazyopencode` defaults only where the user has not set values.
 - Preserve provider, auth, model, MCP, session, and project settings.
 

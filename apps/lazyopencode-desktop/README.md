@@ -3,14 +3,14 @@
 Preinstalled OpenCode Desktop distribution for LazyOpenCode.
 
 This app is intentionally a distribution shell at this stage. The governance
-logic lives in `@lazyopencode/core`; Desktop should bundle and enable that plugin
+logic lives in `lazyopencode-core`; Desktop should bundle and enable that plugin
 by default rather than reimplement workflow rules.
 
 ## Product Contract
 
 - App name: `LazyOpenCode Desktop`
 - Base: OpenCode Desktop upstream
-- Bundled plugin: `@lazyopencode/core`
+- Bundled plugin: `lazyopencode-core`
 - Runtime entry: npm ESM package loaded from `dist/index.js`
 - Toolchain: Deno for maintainers only, not a user runtime requirement
 - First-run config includes LazyOpenCode without requiring users to edit

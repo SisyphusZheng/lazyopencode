@@ -28,7 +28,7 @@ AI coding often overbuilds, drifts away from the request, launches work that is 
 
 ## Is It Zero Config?
 
-Yes for the core plugin. After OpenCode loads `@lazyopencode/core`, LazyOpenCode
+Yes for the core plugin. After OpenCode loads `lazyopencode-core`, LazyOpenCode
 registers its primary agent, subagents, workflow skills, `/lazy` commands,
 permission guard, job board, token budget, council guard, persistence, doctor,
 and close report defaults.
@@ -190,7 +190,21 @@ Full optional config:
       "todos": true,
       "permissions": true,
       "worktreeIsolation": "risky-only",
-      "revertCheckpoints": true
+      "revertCheckpoints": true,
+      "context7": "suggest",
+      "sdkControlPlane": true,
+      "sdkTelemetry": true,
+      "tuiNotifications": true
+    },
+    "models": {
+      "mode": "preserve",
+      "primary": "openai/o3",
+      "defaultSubagent": "deepseek/ds-v4-flash-free-max",
+      "escalation": {
+        "oracle": "openai/o3",
+        "council": "deepseek/ds-v4-flash-free-max"
+      },
+      "byAgent": {}
     },
     "closeReport": {
       "autoCollect": true,
@@ -278,7 +292,7 @@ Injects a focused, single-goal system prompt: no ponytail philosophy, no delegat
 |-------|------|------|
 | `lazy` | primary | Runtime coordinator — classify, gate, delegate, track, close |
 | `lazy-explorer` | subagent | Fast codebase recon (glob, grep, AST) |
-| `lazy-oracle` | subagent | Architecture, debugging, review, council orchestration |
+| `lazy-oracle` | subagent | Judgment-only escalation for architecture, debugging, review, simplification |
 | `lazy-councillor` | subagent | Independent judgment for council sessions |
 | `lazy-librarian` | subagent | External docs, API references, web research |
 | `lazy-fixer` | subagent | Bounded mechanical implementation |
@@ -311,6 +325,22 @@ Council is an optional escalation path. It is not part of the default happy path
 and it is guarded by workflow eligibility plus `maxCouncillors`.
 
 See [docs/council.md](docs/council.md).
+
+## Model Profiles
+
+By default LazyOpenCode preserves the model you selected in OpenCode. The
+primary agent and oracle use that same model unless you opt into a profile.
+
+To reduce cost, enable `lazyopencode.models.mode = "profile"` and assign a
+cheap or free OpenCode model string to `defaultSubagent`. LazyOpenCode will use
+the expensive model for `lazy` and `lazy-oracle`, while bounded subagents can use
+the cheaper model. Model strings must match your local OpenCode provider setup.
+
+## Context7
+
+LazyOpenCode does not inject context7 by default. Set
+`lazyopencode.opencode.context7 = "inject"` only if you want the plugin to add a
+context7 MCP entry when one is not already configured.
 
 ## Modes
 
@@ -346,12 +376,18 @@ legacy hook adapter enabled for current chat, message, permission, command, and
 tool governance. Deno is only the maintainer toolchain; OpenCode still loads
 `dist/index.js` from the npm package.
 
+`0.0.4` uses the OpenCode SDK control plane for status, doctor, and close
+evidence when available: session status, child sessions, todos, pending
+permissions, diffs, changed files, configured providers/models, app logging, and
+TUI notifications. Missing SDK capabilities degrade to warnings instead of
+blocking work.
+
 ## OpenCode Desktop
 
 LazyOpenCode Desktop is the planned `0.1.0` distribution stage: OpenCode Desktop
-with `@lazyopencode/core` bundled and enabled by default. The plugin remains the
+with `lazyopencode-core` bundled and enabled by default. The plugin remains the
 source of truth; Desktop handles defaults, health, packaging, and discoverability.
 
 ## Status
 
-`0.0.1` is an early, opinionated runtime. Internal module paths are not stable. The public surface is the OpenCode plugin, bundled lazy skills, and `/lazy` command namespace.
+`0.0.4` is an early, opinionated runtime. Internal module paths are not stable. The public surface is the OpenCode plugin, bundled lazy skills, and `/lazy` command namespace.

@@ -1,11 +1,15 @@
 import { assert, assertEquals } from "jsr:@std/assert@1"
-import LazyOpenCodeDefault, { LazyOpenCodePlugin, LazyOpenCodePluginV1 } from "../src/index.ts"
-import { LazyOpenCodeV2Plugin } from "../src/v2.ts"
+import LazyOpenCodeDefault, {
+  LazyOpenCodePlugin,
+  LazyOpenCodePluginV1,
+  LazyOpenCodeV2Plugin,
+} from "../src/index.ts"
 import { createOpenCodeControlPlane } from "../src/opencode-control-plane.ts"
 
 Deno.test("v2 default export registers governed OpenCode surface", async () => {
   assertEquals(LazyOpenCodeDefault, LazyOpenCodePluginV1)
   assertEquals(LazyOpenCodePlugin, LazyOpenCodePluginV1)
+  assertEquals(LazyOpenCodeV2Plugin.id, "lazyopencode-core")
 
   const transforms: Record<string, Array<(draft: unknown) => void | Promise<void>>> = {
     agent: [],
@@ -71,15 +75,46 @@ Deno.test("v2 default export registers governed OpenCode surface", async () => {
 })
 
 Deno.test("OpenCode control plane degrades cleanly", async () => {
+  const logs: unknown[] = []
+  const toasts: unknown[] = []
   const plane = createOpenCodeControlPlane({
-    sessionStatus: () => "idle",
-    pendingPermissions: () => ["p1", "p2"],
-    todos: () => ({ count: 3 }),
-    diffSummary: () => ({ summary: "2 files changed" }),
-    worktree: () => "/tmp/worktree",
-    wait: () => ({ ok: true }),
-    revert: () => {
-      throw new Error("checkpoint missing")
+    session: {
+      status: () => ({ data: { status: "idle" } }),
+      get: () => ({ data: { status: "idle", directory: "/tmp/worktree" } }),
+      children: () => ({ data: [{ id: "child-1" }, { id: "child-2" }] }),
+      todo: () => ({ data: { items: [{ id: "t1" }, { id: "t2" }, { id: "t3" }] } }),
+      diff: () => ({ data: { summary: "2 files changed", files: ["a.ts", "b.ts"] } }),
+      wait: () => ({ data: { ok: true } }),
+      revert: () => {
+        throw new Error("checkpoint missing")
+      },
+    },
+    v2: {
+      session: {
+        permission: {
+          list: () => ({ data: [{ id: "p1" }, { id: "p2" }] }),
+        },
+      },
+    },
+    config: {
+      get: () => ({ data: { model: "openai/gpt-5" } }),
+      providers: () => ({
+        data: {
+          providers: [
+            { id: "openai", models: [{ id: "gpt-5" }, { id: "o3" }] },
+            { id: "deepseek", models: { "free-fast": {} } },
+          ],
+        },
+      }),
+    },
+    file: {
+      status: () => ({ data: { files: ["a.ts", "b.ts", "c.ts"] } }),
+    },
+    app: {
+      log: (input: unknown) => logs.push(input),
+    },
+    tui: {
+      showToast: (input: unknown) => toasts.push(input),
     },
   })
 
@@ -89,10 +124,23 @@ Deno.test("OpenCode control plane degrades cleanly", async () => {
   assertEquals(snapshot.todos, 3)
   assertEquals(snapshot.diffSummary, "2 files changed")
   assertEquals(snapshot.worktree, "/tmp/worktree")
-  assert(snapshot.capabilities.includes("sessionStatus"))
+  assertEquals(snapshot.childSessions, 2)
+  assertEquals(snapshot.changedFiles, 3)
+  assertEquals(snapshot.currentModel, "openai/gpt-5")
+  assert(snapshot.availableModels.includes("openai/gpt-5"))
+  assert(snapshot.availableModels.includes("deepseek/free-fast"))
+  assert(snapshot.capabilities.includes("session.status"))
+
+  const validation = await plane.validateModels(["openai/gpt-5", "missing/model", "badmodel"])
+  assertEquals(validation.invalidModels, ["missing/model", "badmodel"])
+
+  await plane.log("warn", "hello", { ok: true })
+  await plane.notify("info", "done")
+  assertEquals(logs.length, 1)
+  assertEquals(toasts.length, 1)
 
   assertEquals(await plane.wait("s1"), { ok: true })
-  const reverted = await plane.revert("cp1")
+  const reverted = await plane.revert("s1", "m1")
   assertEquals(reverted.ok, false)
   assert(reverted.reason?.includes("checkpoint missing"))
 

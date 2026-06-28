@@ -92,7 +92,8 @@ export function createLazyCommandHandler(runtime: LazyRuntime) {
         writeText(output, await handleClose(runtime, input.sessionID))
         return
       case "doctor":
-        writeText(output, runtime.formatDoctorReport())
+        await runtime.refreshOpenCodeSnapshot(input.sessionID)
+        writeText(output, await handleDoctor(runtime))
         await runtime.save()
         return
       case "verify":
@@ -125,6 +126,11 @@ async function handleStart(runtime: LazyRuntime, task: string): Promise<string> 
   const decision = classifyWorkflow({ text: task, mode: runtime.config.mode })
   await runtime.recordDecision(decision)
   runtime.setStage(stageForDecision(decision))
+  if (decision.action === "block") {
+    await runtime.notify("warn", `Lazy gate blocked ${decision.level}: ${decision.reason}`)
+  } else if (decision.action === "nudge") {
+    await runtime.notify("info", `Lazy gate nudged ${decision.level}: ${decision.reason}`)
+  }
   await runtime.save()
 
   return [
@@ -164,7 +170,7 @@ async function handleDebug(runtime: LazyRuntime, args: string): Promise<string> 
     `Context: ${args || "(no additional context)"}`,
     "",
     "Load `lazy/debug`. Systematic diagnosis loop: reproduce → isolate → hypothesize → test → fix.",
-    "Available: @lazy-oracle for escalation, context7 for library API checks.",
+    "Available: @lazy-oracle for escalation, configured docs tools for library API checks.",
   ].join("\n")
 }
 
@@ -184,6 +190,21 @@ async function handleClose(runtime: LazyRuntime, sessionID?: string): Promise<st
     "Manual corrections: /lazy behavior <text>, /lazy risk <text>, /lazy verify <pass|fail|pending>.",
     "",
     runtime.formatCloseReport(sessionID),
+  ].join("\n")
+}
+
+async function handleDoctor(runtime: LazyRuntime): Promise<string> {
+  const validation = await runtime.validateModelProfile()
+  return [
+    runtime.formatDoctorReport(),
+    "",
+    "Model validation",
+    `- current: ${validation.currentModel}`,
+    `- available: ${validation.availableModels.length}`,
+    `- invalid: ${
+      validation.invalidModels.length > 0 ? validation.invalidModels.join(", ") : "none"
+    }`,
+    `- warnings: ${validation.warnings.length > 0 ? validation.warnings.join("; ") : "none"}`,
   ].join("\n")
 }
 

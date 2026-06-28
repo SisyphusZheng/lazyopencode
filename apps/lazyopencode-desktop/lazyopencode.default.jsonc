@@ -2,7 +2,7 @@
   // LazyOpenCode Desktop first-run defaults.
   // Merge into the user's OpenCode config only when the user has no explicit
   // preference for the same field.
-  "plugin": ["@lazyopencode/core"],
+  "plugin": ["lazyopencode-core"],
 
   "lazyopencode": {
     "sdk": {

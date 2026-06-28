@@ -26,7 +26,7 @@ type ReferenceDraftLike = {
 }
 
 export const LazyOpenCodeV2Plugin = define({
-  id: "@lazyopencode/core",
+  id: "lazyopencode-core",
   setup(context) {
     const ctx = context as unknown as {
       agent?: TransformRegistration<AgentDraftLike>

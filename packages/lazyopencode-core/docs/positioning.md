@@ -39,6 +39,6 @@ Autonomous coding assistants optimize for longer independent runs, memory, and
 self-improvement loops. LazyOpenCode emphasizes governed OpenCode operation:
 small scope, explicit risk gates, budget visibility, and boring closure.
 
-Desktop is a later `0.1.0` task. The current `0.0.1` target is to make
-`@lazyopencode/core` a complete plugin kernel that a Desktop fork can preinstall
+Desktop is a later `0.1.0` task. The current `0.0.x` target is to make
+`lazyopencode-core` a complete plugin kernel that a Desktop fork can preinstall
 safely.

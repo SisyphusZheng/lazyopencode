@@ -25,7 +25,12 @@ Deno.test("runtime-state", async () => {
   assertEquals(defaults.sdk.legacyHookAdapter, true)
   assertEquals(defaults.takeover, "governed")
   assertEquals(defaults.opencode.worktreeIsolation, "risky-only")
+  assertEquals(defaults.opencode.context7, "suggest")
+  assertEquals(defaults.opencode.sdkControlPlane, true)
+  assertEquals(defaults.opencode.sdkTelemetry, true)
+  assertEquals(defaults.opencode.tuiNotifications, true)
   assertEquals(defaults.closeReport.autoCollect, true)
+  assertEquals(defaults.models.mode, "preserve")
 
   const custom = resolveLazyConfig(
     {
@@ -33,6 +38,12 @@ Deno.test("runtime-state", async () => {
       maxSessionsPerAgent: 3,
       maxMessages: 12,
       permissionGuard: false,
+      opencode: { context7: "off" },
+      models: {
+        mode: "profile",
+        primary: "openai/main",
+        defaultSubagent: "deepseek/free",
+      },
       persistence: false,
     },
     scope,
@@ -41,6 +52,10 @@ Deno.test("runtime-state", async () => {
   assertEquals(custom.maxSessionsPerAgent, 3)
   assertEquals(custom.maxMessages, 12)
   assertEquals(custom.permissionGuard, false)
+  assertEquals(custom.opencode.context7, "off")
+  assertEquals(custom.models.mode, "profile")
+  assertEquals(custom.models.primary, "openai/main")
+  assertEquals(custom.models.defaultSubagent, "deepseek/free")
   assertEquals(custom.persistence, false)
 
   const dir = Deno.makeTempDirSync()
@@ -81,6 +96,7 @@ Deno.test("runtime-state", async () => {
   assertEquals(restored.openCodeSnapshot.todos, 2)
   assertEquals(restored.openCodeSnapshot.diffSummary, "3 files changed")
   assertEquals(restored.formatStatus("parent").includes("Token control"), true)
+  assertEquals(restored.formatStatus("parent").includes("Model profile"), true)
   assertEquals(restored.formatStatus("parent").includes("OpenCode"), true)
   assertEquals(restored.formatCloseReport("parent").includes("Changed behavior"), true)
   assertEquals(restored.formatCloseReport("parent").includes("none recorded"), true)

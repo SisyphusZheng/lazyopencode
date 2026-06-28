@@ -1,6 +1,6 @@
 # Attribution
 
-@lazyopencode/core is a hard fork and fusion of multiple open-source projects. We thank the original authors.
+lazyopencode-core is a hard fork and fusion of multiple open-source projects. We thank the original authors.
 
 ## Agent orchestration
 

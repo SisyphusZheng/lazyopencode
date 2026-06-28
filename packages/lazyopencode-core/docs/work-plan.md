@@ -12,7 +12,7 @@ same product.
 Desktop is a later distribution stage. It should package and visualize the core,
 not recreate core rules.
 
-## Phase 0: 0.0.1 Release Lock
+## Phase 0: 0.0.4 Core Plugin Lock
 
 Goal: ship the current core as a clean, zero-config OpenCode plugin.
 
@@ -34,7 +34,7 @@ Tasks:
    - Keep agent names stable.
    - Keep `/lazy` command namespace stable.
    - Keep `LazyOpenCodePluginV1` named export for legacy hook loading.
-   - Keep default export on v2 registration surface.
+   - Keep default export on the legacy hook adapter until v2 can cover governance hooks.
 
 Acceptance criteria:
 
@@ -123,7 +123,7 @@ Tasks:
 
 1. Import or fork upstream OpenCode Desktop.
 2. Add first-run config merge:
-   - add `@lazyopencode/core` if absent
+   - add `lazyopencode-core` if absent
    - add `lazyopencode` defaults only when not user-set
    - preserve provider, auth, model, MCP, project, and session settings
 3. Add Lazy Health panel:
@@ -183,8 +183,8 @@ Acceptance criteria:
 
 ## Current Priority
 
-Do not start Desktop until `0.0.1` is locked and `0.0.2` runtime deepening is
-planned clearly.
+Do not start Desktop until the `0.0.x` core plugin is locked and runtime deepening
+is planned clearly.
 
 The next best engineering task is Phase 1: split `LazyRuntime` into deeper
 modules while preserving behavior and tests.

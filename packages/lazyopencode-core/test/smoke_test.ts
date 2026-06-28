@@ -65,6 +65,19 @@ Deno.test("smoke", async () => {
     "full board injected after launch (dirty)",
   )
 
+  const smallMsgs = [{
+    info: { role: "user" },
+    parts: [{ type: "text", text: "fix typo in README" }],
+  }]
+  await hooks["experimental.chat.messages.transform"](
+    { sessionID: "s-smoke-small", agent: "lazy" },
+    { messages: smallMsgs },
+  )
+  assert(
+    !smallMsgs[0].parts[0].text.includes("STOP. No alignment"),
+    "small clear fixes are not stopped by workflow skip gate",
+  )
+
   // ---------------------------------------------------------------------------
   // 5. Subagent completes → terminal unreconciled
   // ---------------------------------------------------------------------------

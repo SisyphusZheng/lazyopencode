@@ -1,5 +1,5 @@
 import { assert } from "jsr:@std/assert@1"
-import { LazyOpenCodePlugin } from "../src/index.ts"
+import { LazyOpenCodePlugin, LazyOpenCodeV2Plugin } from "../src/index.ts"
 import { BackgroundJobBoard, jobBoard } from "../src/hooks/background-job-board.ts"
 import { readFileSync } from "node:fs"
 
@@ -87,6 +87,8 @@ Deno.test("integration", async () => {
   assert(config.command?.lazy !== undefined, "/lazy command registered")
   assert(config.command?.deepwork !== undefined, "/deepwork alias registered")
   assert(hooks.tool?.council_session !== undefined, "council tool registered")
+  assert(config.mcp?.context7 === undefined, "context7 is not injected by default")
+  assert(LazyOpenCodeV2Plugin.id === "lazyopencode-core", "v2 plugin id uses package name")
 
   const mergeHooks = await LazyOpenCodePlugin(scopedCtx("lazy-merge"))
   const skillsDir = new URL("../dist/skills/lazy/", import.meta.url).pathname
@@ -113,6 +115,47 @@ Deno.test("integration", async () => {
     mergeConfig.skills.paths.filter((p) => p === skillsDir).length === 1,
     "skills path registered idempotently",
   )
+
+  const profileHooks = await LazyOpenCodePlugin(scopedCtx("lazy-model-profile"))
+  const profileConfig = {
+    agent: {
+      "lazy-fixer": { model: "user/fixer-override" },
+    },
+    lazyopencode: {
+      persistence: false,
+      models: {
+        mode: "profile",
+        primary: "openai/expensive-main",
+        defaultSubagent: "deepseek/free-fast",
+        escalation: { oracle: "openai/oracle-main", council: "deepseek/free-council" },
+        byAgent: { "lazy-librarian": "deepseek/docs-fast" },
+      },
+      opencode: { context7: "inject" },
+    },
+  }
+  await profileHooks.config(profileConfig)
+  assert(profileConfig.agent.lazy.model === "openai/expensive-main", "primary model assigned")
+  assert(
+    profileConfig.agent["lazy-oracle"].model === "openai/oracle-main",
+    "oracle escalation model assigned",
+  )
+  assert(
+    profileConfig.agent["lazy-councillor"].model === "deepseek/free-council",
+    "council escalation model assigned",
+  )
+  assert(
+    profileConfig.agent["lazy-explorer"].model === "deepseek/free-fast",
+    "default subagent model assigned",
+  )
+  assert(
+    profileConfig.agent["lazy-librarian"].model === "deepseek/docs-fast",
+    "byAgent model override assigned",
+  )
+  assert(
+    profileConfig.agent["lazy-fixer"].model === "user/fixer-override",
+    "user agent model override wins",
+  )
+  assert(profileConfig.mcp?.context7 !== undefined, "context7 inject is opt-in")
 
   const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8")
   assert(readme.includes("/lazy debug"), "README documents /lazy debug")
@@ -142,12 +185,35 @@ Deno.test("integration", async () => {
   const controlPlaneHooks = await LazyOpenCodePlugin({
     ...scopedCtx("lazy-control-plane"),
     client: {
-      sessionStatus: () => "idle",
-      pendingPermissions: () => ["permission-1"],
-      todos: () => ({ count: 2 }),
-      diffSummary: () => ({ summary: "4 files changed" }),
-      worktree: () => "/tmp/lazy-control-plane-worktree",
-      revert: () => ({ ok: true }),
+      session: {
+        status: () => ({ data: { status: "idle" } }),
+        get: () => ({ data: { status: "idle", directory: "/tmp/lazy-control-plane-worktree" } }),
+        children: () => ({ data: [{ id: "child-1" }] }),
+        todo: () => ({ data: { items: [{ id: "todo-1" }, { id: "todo-2" }] } }),
+        diff: () => ({ data: { summary: "4 files changed", files: ["a.ts", "b.ts"] } }),
+        revert: () => ({ data: { ok: true } }),
+      },
+      v2: {
+        session: {
+          permission: {
+            list: () => ({ data: [{ id: "permission-1" }] }),
+          },
+        },
+      },
+      config: {
+        get: () => ({ data: { model: "openai/gpt-5" } }),
+        providers: () => ({
+          data: {
+            providers: [
+              { id: "openai", models: [{ id: "gpt-5" }] },
+              { id: "deepseek", models: { "free-fast": {} } },
+            ],
+          },
+        }),
+      },
+      file: {
+        status: () => ({ data: { files: ["a.ts", "b.ts", "c.ts"] } }),
+      },
     },
   })
   await controlPlaneHooks.config({ agent: {}, lazyopencode: { persistence: false } })
@@ -181,6 +247,14 @@ Deno.test("integration", async () => {
     controlStatusOut.parts[0]?.text.includes("4 files changed"),
     "/lazy status refreshes diff summary from control plane",
   )
+  assert(
+    controlStatusOut.parts[0]?.text.includes("child sessions: 1"),
+    "/lazy status refreshes child session count from SDK",
+  )
+  assert(
+    controlStatusOut.parts[0]?.text.includes("changed files: 3"),
+    "/lazy status refreshes changed file count from SDK",
+  )
   const controlCloseOut = { parts: [] }
   await controlPlaneHooks["command.execute.before"](
     { command: "lazy", arguments: "status", sessionID: "s-control" },
@@ -192,7 +266,10 @@ Deno.test("integration", async () => {
   )
   const diffMentions = controlCloseOut.parts[0]?.text.match(/Diff summary: 4 files changed/g) ??
     []
-  assert(diffMentions.length === 1, "control-plane diff evidence is deduplicated")
+  assert(
+    diffMentions.length === 2,
+    "control-plane diff appears once as SDK summary and once as close evidence",
+  )
 
   const statusOut = { parts: [] }
   await hooks["command.execute.before"](
@@ -209,6 +286,7 @@ Deno.test("integration", async () => {
     statusOut.parts[0]?.text.includes("Recent gate decisions"),
     "/lazy status shows recent decisions",
   )
+  assert(statusOut.parts[0]?.text.includes("Model profile"), "/lazy status shows model profile")
 
   const modeOut = { parts: [] }
   await hooks["command.execute.before"](
@@ -501,6 +579,16 @@ Deno.test("integration", async () => {
   const ponyCount = (sysOut.system[0].match(/PONYTAIL MODE ACTIVE/g) || [])
     .length
   assert(ponyCount === 1, "ponytail is injected once across repeated calls")
+
+  const unknownSysOut = { system: ["You are an AI assistant."] }
+  await hooks["experimental.chat.system.transform"](
+    { sessionID: "s-unknown-agent" },
+    unknownSysOut,
+  )
+  assert(
+    !unknownSysOut.system.join("\n").includes("lazy workflow engine"),
+    "unknown agent does not receive lazy primary prompt",
+  )
 
   // ---------------------------------------------------------------------------
   // 3. Chat params (per-agent temperature)

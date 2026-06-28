@@ -269,6 +269,9 @@ export function createMessagesTransformHook(runtime?: LazyRuntime) {
     const msgs = output.messages
     const agent = input.agent ?? "lazy"
     const sessionID = input.sessionID ?? ""
+    if (sessionID && input.agent) {
+      runtime?.sessionAgentMap.set(sessionID, input.agent)
+    }
 
     // 1. Enhanced context pruning
     // Keep: system + last N user turns + everything between them and end
@@ -335,10 +338,10 @@ export function createMessagesTransformHook(runtime?: LazyRuntime) {
           text: recentText,
           mode: runtime?.config.mode ?? "governor",
         })
-        runtime?.recordDecision(decision)
+        await runtime?.recordDecision(decision)
         if (decision.action !== "allow") {
           injectIntoLastUserMessage(msgs, `\n\n${formatWorkflowDecision(decision)}`)
-        } else {
+        } else if (decision.level !== "trivial" && decision.level !== "small") {
           // classifyWorkflow allowed — still check for skipped workflow steps
           const gate = detectWorkflowSkip(msgs)
           if (gate) injectIntoLastUserMessage(msgs, `\n\n${gate}`)

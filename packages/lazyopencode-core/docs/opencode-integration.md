@@ -3,12 +3,11 @@
 LazyOpenCode is an OpenCode-native workflow governor. The plugin should work
 with no `lazyopencode` config block; configuration only customizes defaults.
 
-OpenCode loads `dist/index.js` from the npm package. The default export uses the
-v2 promise registration surface for agents, commands, skills, and references.
-The named `LazyOpenCodePluginV1` export remains available for legacy hook
-registration and existing tests. The legacy adapter stays enabled by default
-because current governance still depends on chat, message, command, permission,
-and tool hooks.
+OpenCode loads `dist/index.js` from the npm package. The default export remains
+the legacy hook adapter because current governance depends on chat, message,
+command, permission, and tool hooks. The named `LazyOpenCodeV2Plugin` export
+keeps the v2 promise registration surface available for agents, commands,
+skills, and references while v2 hook coverage matures.
 
 ## Hook Boundaries
 
@@ -21,6 +20,22 @@ and tool hooks.
   error recovery.
 - chat transforms: inject workflow guidance, job-board status, token-control
   pruning, image redirects, and Ponytail behavior.
+
+## SDK Control Plane
+
+`0.0.4` uses the OpenCode SDK as a best-effort control plane for status, doctor,
+and close reports. The adapter prefers real SDK groups such as `session`,
+`config`, `file`, `find`, `app`, `tui`, and v2 session permission/fs APIs.
+
+Collected evidence includes:
+
+- session status, child sessions, todos, messages, diffs, wait, and revert
+- pending session permissions from v2 permission APIs when available
+- configured providers and models for model profile validation
+- file status / changed file counts
+- app logging and TUI notifications when available
+
+Missing SDK APIs degrade to warnings. They should never block normal governance.
 
 ## Zero Config
 
@@ -36,6 +51,9 @@ plugin mechanism. Once loaded, LazyOpenCode defaults are complete:
 - `sdk.legacyHookAdapter: true`
 - `takeover: "governed"`
 - `opencode.worktreeIsolation: "risky-only"`
+- `opencode.sdkControlPlane: true`
+- `opencode.sdkTelemetry: true`
+- `opencode.tuiNotifications: true`
 - `closeReport.autoCollect: true`
 
 ## Config Merge Contract

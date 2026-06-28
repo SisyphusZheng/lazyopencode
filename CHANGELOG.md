@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.0.4 (2026-06-28)
+
+- Consolidated the local governance and OpenCode SDK work into the next npm release after 0.0.3.
+- Package identity: standardized on `lazyopencode-core` and kept root `deno.json` as workspace-only config.
+- Runtime governance: context7 is opt-in, model profiles support expensive primary plus cheaper subagents, and `lazy-oracle` is judgment-only escalation.
+- OpenCode integration: added SDK-backed control plane for status, doctor, close evidence, provider/model validation, app logging, and TUI notifications when available.
+- Release hardening: CI now runs full `deno task verify`, package smoke test imports `dist/index.js`, and GitHub Actions release workflow publishes to npm with provenance.
+
 ## 0.0.3 (2026-06-28)
 
 - Repo infrastructure: README, CI, GitHub topics, branch protection

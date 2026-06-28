@@ -1,6 +1,6 @@
 # LazyOpenCode User Manual
 
-Version 0.0.1
+Version 0.0.4
 
 ---
 
@@ -31,7 +31,7 @@ Add to `opencode.json`:
 
 ```json
 {
-  "plugin": ["@lazyopencode/core"]
+  "plugin": ["lazyopencode-core"]
 }
 ```
 
@@ -58,14 +58,16 @@ override with `just do it` to skip gating.
 |-------|------|------|
 | `lazy` | primary | Runtime coordinator — workflow governance |
 | `lazy-explorer` | subagent | Fast codebase recon (glob, grep, AST) |
-| `lazy-oracle` | subagent | Architecture, debugging, review, simplification |
-| `lazy-librarian` | subagent | External docs, API references, web research |
+| `lazy-oracle` | subagent | Judgment-only escalation for architecture, debugging, review, simplification |
+| `lazy-librarian` | subagent | External docs, API references, configured docs tools, web research |
 | `lazy-fixer` | subagent | Bounded implementation, mechanical changes |
 | `lazy-designer` | subagent | UI/UX design (temp 0.7) |
 | `lazy-observer` | subagent | Image/screenshot analysis |
 | `lazy-councillor` | subagent | Single-model judgment for council sessions |
 
 The primary agent (`lazy`) is the entry point. It delegates to subagents as needed.
+The oracle is not a second primary; it gives judgment when the primary escalates
+high-risk, ambiguous, debug, architecture, review, or simplification questions.
 
 ### Agent Configuration
 
@@ -204,7 +206,7 @@ Complete `opencode.json` structure:
 
 ```jsonc
 {
-  "plugin": ["@lazyopencode/core"],
+  "plugin": ["lazyopencode-core"],
 
   "lazyopencode": {
     // OpenCode SDK surface
@@ -243,7 +245,23 @@ Complete `opencode.json` structure:
       "todos": true,
       "permissions": true,
       "worktreeIsolation": "risky-only",
-      "revertCheckpoints": true
+      "revertCheckpoints": true,
+      "context7": "suggest",
+      "sdkControlPlane": true,
+      "sdkTelemetry": true,
+      "tuiNotifications": true
+    },
+
+    // Model assignment. Preserve means use the model selected in OpenCode.
+    "models": {
+      "mode": "preserve",
+      "primary": "openai/o3",
+      "defaultSubagent": "deepseek/ds-v4-flash-free-max",
+      "escalation": {
+        "oracle": "openai/o3",
+        "council": "deepseek/ds-v4-flash-free-max"
+      },
+      "byAgent": {}
     },
 
     // Close report collection
@@ -297,6 +315,16 @@ Complete `opencode.json` structure:
 | `opencode.vcsDiff` | `true` | Collect diff summary when available |
 | `opencode.todos` | `true` | Collect todo summary when available |
 | `opencode.permissions` | `true` | Include pending permission state in status |
+| `opencode.context7` | `"suggest"` | `"suggest"`, `"inject"`, or `"off"` for optional context7 MCP handling |
+| `opencode.sdkControlPlane` | `true` | Use OpenCode SDK for status, doctor, close evidence, and model validation |
+| `opencode.sdkTelemetry` | `true` | Use OpenCode app logging when available |
+| `opencode.tuiNotifications` | `true` | Use OpenCode TUI notifications when available |
+| `models.mode` | `"preserve"` | `"preserve"` keeps OpenCode's selected model; `"profile"` assigns models per lazy role |
+| `models.primary` | unset | Model string for `lazy` when profile mode is enabled |
+| `models.defaultSubagent` | unset | Model string for subagents when profile mode is enabled |
+| `models.escalation.oracle` | unset | Optional oracle model override in profile mode |
+| `models.escalation.council` | unset | Optional councillor model override in profile mode |
+| `models.byAgent` | `{}` | Per-agent model overrides in profile mode |
 | `closeReport.autoCollect` | `true` | Collect close evidence from tool results |
 | `closeReport.maxItems` | `5` | Max remembered close evidence per section |
 | `commands.lazy` | `true` | Enable `/lazy` commands |
@@ -374,8 +402,8 @@ To override a gate, say `just do it`.
 ### Plugin not loading
 
 Check:
-- Plugin name matches exactly: `"@lazyopencode/core"`
-- Package is installed (`ls node_modules/@lazyopencode/core`)
+- Plugin name matches exactly: `"lazyopencode-core"`
+- Package is installed (`ls node_modules/lazyopencode-core`)
 - OpenCode version is compatible (requires SDK `^1.2.6`)
 
 ### Skills not found

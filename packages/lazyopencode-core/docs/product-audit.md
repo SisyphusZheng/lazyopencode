@@ -11,7 +11,7 @@ prompt toolbox. The product combines three things:
 - A governance layer for scope, risk, budget, permissions, and closure.
 - A future Desktop distribution that makes those defaults visible and easy.
 
-The current `0.0.1` core is close to a usable kernel: commands, agents, skills,
+The current `0.0.x` core is close to a usable kernel: commands, agents, skills,
 runtime state, job board, council guard, token control, doctor output, and close
 report all exist and pass verification. The next work is mostly deepening,
 simplifying, and making the boundaries sharper.
@@ -73,7 +73,7 @@ Small scope, visible work, bounded context, reviewed output.
 - Worktree isolation is advice/policy, not full automation.
 - Doctor output checks the important basics, but should become a deeper module
   with structured checks.
-- Desktop is intentionally not implemented in `0.0.1`.
+- Desktop is intentionally not implemented in `0.0.x`.
 
 ## Project Design
 
@@ -171,12 +171,12 @@ but adds governance and closure.
 Compared with autonomous coding assistants, LazyOpenCode stays OpenCode-native
 and prioritizes controlled engineering workflow over long independent runs.
 
-Compared with future Desktop distributions, `@lazyopencode/core` is the source
+Compared with future Desktop distributions, `lazyopencode-core` is the source
 of truth. Desktop should package and visualize core behavior, not duplicate it.
 
 ## Release Readiness
 
-`0.0.1` is releaseable once these stay true:
+`0.0.4` is releaseable once these stay true:
 
 - `npm run verify` passes.
 - README and docs use governed team runtime positioning.

@@ -15,11 +15,11 @@ interface RuntimeConfig extends Config {
 }
 
 /**
- * @lazyopencode/core — Governed team runtime for AI coding in OpenCode.
+ * lazyopencode-core — Governed team runtime for AI coding in OpenCode.
  *
  * One plugin. Zero config. Total takeover.
  *
- * Install: { "plugin": ["@lazyopencode/core"] }
+ * Install: { "plugin": ["lazyopencode-core"] }
  */
 const LazyOpenCodePluginV1: Plugin = async (ctx) => {
   const agents = createAgents()
@@ -28,7 +28,7 @@ const LazyOpenCodePluginV1: Plugin = async (ctx) => {
     directory: ctx.directory,
     worktree: ctx.worktree,
   })
-  runtime.setControlPlane(createOpenCodeControlPlane(ctx.client))
+  runtime.setControlPlane(createOpenCodeControlPlane(ctx.client, ctx.directory))
   const hooks = createHooks(runtime)
   const councilTool = createCouncilTool(
     ctx.client,
@@ -58,7 +58,7 @@ const LazyOpenCodePluginV1: Plugin = async (ctx) => {
       const cfg = config as RuntimeConfig
       runtime.configure(cfg.lazyopencode)
       await runtime.load()
-      cfg.agent = mergeAgents(cfg.agent ?? {}, agents)
+      cfg.agent = mergeAgents(cfg.agent ?? {}, agents, runtime.config)
       cfg.skills = cfg.skills || {}
       const paths = cfg.skills.paths || []
       const skillsDir = getSkillsDir()
@@ -66,15 +66,7 @@ const LazyOpenCodePluginV1: Plugin = async (ctx) => {
         paths.push(skillsDir)
       }
       cfg.skills.paths = paths
-      // deno-lint-ignore no-explicit-any
-      const mcp = (cfg as any).mcp as Record<string, unknown> | undefined
-      if (!mcp?.context7) {
-        // deno-lint-ignore no-explicit-any
-        ;(cfg as any).mcp = {
-          ...(mcp || {}),
-          context7: { command: ["npx", "-y", "@agentdesk/context7-mcp"] },
-        }
-      }
+      maybeInjectContext7(cfg, runtime.config)
       registerLazyCommands(cfg, runtime)
     },
     dispose: async () => {
@@ -86,16 +78,50 @@ const LazyOpenCodePluginV1: Plugin = async (ctx) => {
 
 const LazyOpenCodePlugin = LazyOpenCodePluginV1
 
+export { LazyOpenCodeV2Plugin } from "./v2.js"
 export { LazyOpenCodePlugin, LazyOpenCodePluginV1 }
 export default LazyOpenCodePluginV1
 
 function mergeAgents(
   existing: NonNullable<RuntimeConfig["agent"]>,
   lazyAgents: ReturnType<typeof createAgents>,
+  config: ReturnType<typeof createLazyRuntime>["config"],
 ): NonNullable<RuntimeConfig["agent"]> {
   const merged = { ...existing }
   for (const [name, defaults] of Object.entries(lazyAgents)) {
-    merged[name] = { ...(defaults as object), ...(merged[name] as object) } as AgentConfig
+    const profileModel = modelForAgent(name, defaults, config)
+    const lazyDefaults = profileModel ? { ...(defaults as object), model: profileModel } : defaults
+    merged[name] = { ...(lazyDefaults as object), ...(merged[name] as object) } as AgentConfig
   }
   return merged
+}
+
+function modelForAgent(
+  name: string,
+  defaults: AgentConfig,
+  config: ReturnType<typeof createLazyRuntime>["config"],
+): string | undefined {
+  if (config.models.mode !== "profile") return undefined
+  if (config.models.byAgent[name]) return config.models.byAgent[name]
+  if (name === "lazy") return config.models.primary
+  if (name === "lazy-oracle") return config.models.escalation.oracle ?? config.models.primary
+  if (name === "lazy-councillor") {
+    return config.models.escalation.council ?? config.models.defaultSubagent
+  }
+  if (defaults.mode === "subagent") return config.models.defaultSubagent
+  return undefined
+}
+
+function maybeInjectContext7(
+  cfg: RuntimeConfig,
+  config: ReturnType<typeof createLazyRuntime>["config"],
+): void {
+  if (config.opencode.context7 !== "inject") return
+  // deno-lint-ignore no-explicit-any
+  const mcp = (cfg as any).mcp as Record<string, unknown> | undefined
+  if (mcp?.context7) return // deno-lint-ignore no-explicit-any
+  ;(cfg as any).mcp = {
+    ...(mcp || {}),
+    context7: { command: ["npx", "-y", "@agentdesk/context7-mcp"] },
+  }
 }
