@@ -1,0 +1,45 @@
+{
+  "name": "@lazyopencode/core",
+  "version": "0.0.1",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "imports": {
+    "@opencode-ai/plugin": "npm:@opencode-ai/plugin@^1.2.6",
+    "@opencode-ai/sdk": "npm:@opencode-ai/sdk@latest"
+  },
+  "publish": {
+    "include": ["dist", "README.md", "docs", "ATTRIBUTION.md", "LICENSE", "package.json"],
+    "exclude": ["test", "src", "node_modules", "package-lock.json", "lazyopencode-core-*.tgz"]
+  },
+  "tasks": {
+    "build": "rm -rf dist && deno run -A npm:typescript@^5.7.0/tsc --project tsconfig.json && cp -r src/skills/lazy dist/skills/lazy",
+    "check": "deno run -A npm:typescript@^5.7.0/tsc --noEmit --project tsconfig.json",
+    "test": "deno task build && deno test --allow-all --sloppy-imports --no-check test/*_test.ts",
+    "test:fast": "deno test --allow-all --sloppy-imports --no-check test/*_test.ts",
+    "verify": "deno task check && deno task test && deno task lint && deno task fmt:check && npm pack --dry-run",
+    "fmt": "deno fmt src/ test/*_test.ts",
+    "fmt:check": "deno fmt --check src/ test/*_test.ts",
+    "lint": "deno lint src/ test/*_test.ts",
+    "pack": "deno task build && npm pack --dry-run",
+    "pack:deno": "deno pack --dry-run --sloppy-imports"
+  },
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitReturns": true
+  },
+  "fmt": {
+    "useTabs": false,
+    "lineWidth": 100,
+    "indentWidth": 2,
+    "semiColons": false,
+    "singleQuote": false,
+    "proseWrap": "preserve"
+  },
+  "lint": {
+    "rules": {
+      "tags": ["recommended"],
+      "exclude": ["require-await"]
+    }
+  }
+}

@@ -1,0 +1,43 @@
+{
+  // LazyOpenCode Desktop first-run defaults.
+  // Merge into the user's OpenCode config only when the user has no explicit
+  // preference for the same field.
+  "plugin": ["@lazyopencode/core"],
+
+  "lazyopencode": {
+    "sdk": {
+      "mode": "v2",
+      "legacyHookAdapter": true
+    },
+    "takeover": "governed",
+    "mode": "governor",
+    "maxSessionsPerAgent": 2,
+    "maxActiveTaskDepth": 4,
+    "maxMessages": 80,
+    "permissionGuard": true,
+    "persistence": {},
+    "workflowGate": true,
+    "ponytailMode": true,
+    "opencode": {
+      "sessionStatus": true,
+      "vcsDiff": true,
+      "todos": true,
+      "permissions": true,
+      "worktreeIsolation": "risky-only",
+      "revertCheckpoints": true
+    },
+    "closeReport": {
+      "autoCollect": true,
+      "maxItems": 5
+    },
+    "commands": {
+      "lazy": true,
+      "deepworkAlias": true
+    },
+    "council": {
+      "enabled": true,
+      "eligibility": "guarded",
+      "maxCouncillors": 3
+    }
+  }
+}

@@ -1,0 +1,6 @@
+# opencode ignore — files never shown in Read/file-tool context
+dist/
+**/node_modules/
+**/.git/
+*.map
+*.d.ts

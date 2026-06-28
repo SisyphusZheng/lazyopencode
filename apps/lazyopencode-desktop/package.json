@@ -1,0 +1,10 @@
+{
+  "name": "@lazyopencode/desktop",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Preinstalled OpenCode Desktop distribution for LazyOpenCode",
+  "type": "module",
+  "scripts": {
+    "verify": "test -f lazyopencode.default.jsonc && test -f README.md"
+  }
+}

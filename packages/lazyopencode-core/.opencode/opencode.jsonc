@@ -1,0 +1,49 @@
+// LazyOpenCode Desktop preset
+// Copy to opencode.json or merge with your existing config.
+{
+  "plugin": ["@lazyopencode/core"],
+
+  "lazyopencode": {
+    // Governance mode: off | coach | governor | strict
+    "mode": "governor",
+
+    // Agent concurrency limits
+    "maxSessionsPerAgent": 2,
+    "maxActiveTaskDepth": 4,
+
+    // Context window — sliding message count
+    "maxMessages": 80,
+
+    // Ask before destructive commands
+    "permissionGuard": true,
+
+    // Persist runtime state to disk (empty object = default path)
+    "persistence": {},
+
+    // Enable workflow classifier gate
+    "workflowGate": true,
+
+    // Inject ponytail philosophy into system prompt
+    "ponytailMode": true,
+
+    // /lazy commands
+    "commands": {
+      "lazy": true,
+      "deepworkAlias": true
+    },
+
+    // Council (uncomment and configure as needed):
+    // "council": {
+    //   "enabled": true,
+    //   "eligibility": "guarded",
+    //   "default_preset": "code-review",
+    //   "maxCouncillors": 3,
+    //   "presets": {
+    //     "code-review": {
+    //       "reasoner": { "model": "openai/o3" },
+    //       "critic":   { "model": "anthropic/claude-opus-4" }
+    //     }
+    //   }
+    // }
+  }
+}

@@ -1,0 +1,4 @@
+{
+  "workspace": ["packages/lazyopencode-core", "apps/lazyopencode-desktop"],
+  "nodeModulesDir": "auto"
+}

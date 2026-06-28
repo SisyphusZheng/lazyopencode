@@ -1,0 +1,44 @@
+{
+  "name": "@lazyopencode/core",
+  "version": "0.0.1",
+  "description": "Governed team runtime for AI coding in OpenCode",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "docs",
+    "ATTRIBUTION.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "ai",
+    "agents",
+    "workflow",
+    "ponytail",
+    "lazy"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SisyphusZheng/lazyopencode"
+  },
+  "dependencies": {
+    "@opencode-ai/plugin": "^1.2.6"
+  },
+  "devDependencies": {
+    "@types/node": "^26.0.1",
+    "typescript": "^5.7.0"
+  },
+  "scripts": {
+    "build": "deno task build",
+    "check": "deno task check",
+    "test": "deno task test",
+    "verify": "deno task verify",
+    "fmt": "deno task fmt",
+    "lint": "deno task lint"
+  }
+}
