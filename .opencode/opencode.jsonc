@@ -1,3 +1,4 @@
 {
-  "plugin": ["./packages/lazyopencode-core/dist/index.js"]
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": ["../packages/lazyopencode-core/dist/index.js"]
 }
