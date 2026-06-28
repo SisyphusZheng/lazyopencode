@@ -1,5 +1,5 @@
 {
-  "name": "@lazyopencode/core",
+  "name": "lazyopencode-core",
   "version": "0.0.1",
   "description": "Governed team runtime for AI coding in OpenCode",
   "type": "module",
